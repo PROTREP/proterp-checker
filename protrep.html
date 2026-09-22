@@ -9,20 +9,20 @@
         body{background:#0f1115; color:#fff; padding:30px 20px; max-width:600px; margin:0 auto;}
         h1{text-align:center; margin-bottom:30px;}
         .protrep{color:#3b82f6; font-weight:900;}
-        .box{background:#1a1d23; padding:25px; border-radius:16px; margin-bottom:20px;}
+        .box{background:#1a1d23; padding:25px; border-radius:16px;}
         input{width:100%; padding:14px; font-size:16px; border:2px solid #2d3038; border-radius:10px; background:#0f1115; color:#fff; margin-bottom:15px;}
         button{width:100%; padding:14px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:white; cursor:pointer;}
         button:disabled{opacity:0.6;}
-        .result{margin-top:20px; display:none;}
-        .stats{display:grid; grid-template-columns:1fr 1fr; gap:12px; margin:20px 0;}
-        .stat{background:#252931; padding:18px; border-radius:10px; text-align:center;}
-        .stat label{color:#9ca3af; font-size:13px;}
-        .stat span{font-size:24px; font-weight:bold; display:block; margin-top:5px;}
-        .meta{margin-top:15px;}
-        .meta div{display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid #2d3038;}
+        .result{display:none; margin-top:25px;}
+        .stats{display:grid; grid-template-columns:1fr 1fr; gap:15px; margin:20px 0;}
+        .stat{background:#252931; padding:20px; border-radius:12px; text-align:center;}
+        .stat label{color:#9ca3af; font-size:14px;}
+        .stat span{font-size:26px; font-weight:bold; display:block; margin-top:8px;}
+        .meta{margin-top:20px;}
+        .meta div{display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #2d3038;}
         .loading{text-align:center; padding:20px; color:#9ca3af; display:none;}
-        .success{color:#10b981; margin:10px 0;}
-        .info{color:#fbbf24; margin:10px 0;}
+        .ok{color:#10b981; margin:10px 0;}
+        .info{color:#fbbf24; margin:10px 0; font-size:14px;}
     </style>
 </head>
 <body>
@@ -36,7 +36,7 @@
         <div id="msg"></div>
         
         <div class="result" id="result">
-            <p class="success">✅ Pautan sah & diterima!</p>
+            <p class="ok">✅ Pautan sah! Siap semak!</p>
             <p style="color:#d1d5db; margin-bottom:15px;" id="cap"></p>
             
             <div class="stats">
@@ -51,10 +51,6 @@
                 <div><span>Tarikh</span><span id="dt">--</span></div>
                 <div><span>Status</span><span style="color:#10b981; font-weight:bold;">Public</span></div>
             </div>
-            
-            <p class="info" style="margin-top:20px; font-size:14px;">
-                💡 Untuk nombor tepat: Buka pautan TikTok → salin nombor tontonan → masukkan di sini
-            </p>
         </div>
     </div>
 
@@ -64,14 +60,6 @@ function format(n){
     if(n>=1000000) return (n/1000000).toFixed(1)+'M';
     if(n>=1000) return (n/1000).toFixed(1)+'K';
     return n;
-}
-
-function extractInfo(url){
-    let username = 'protrep';
-    const uname = url.match(/@([^\/]+)/);
-    if(uname) username = uname[1];
-    
-    return { username };
 }
 
 async function semak(){
@@ -91,51 +79,51 @@ async function semak(){
     loading.style.display = 'block';
     result.style.display = 'none';
 
-    // Guna API alternatif dengan proksi awam
-    const apis = [
-        `https://api.allorigins.win/raw?url=${encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link))}`,
-        `https://corsproxy.io/?${encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link))}`
-    ];
+    // Cari nama akaun dari pautan
+    const username = link.match(/@([^\/]+)/) ? link.match(/@([^\/]+)/)[1] : 'protrep';
+    // Cari tajuk video (ringkas)
+    const title = link.substring(0, 40) + '...';
 
-    let data = null;
-    let success = false;
+    try{
+        // Cuba ambil data automatik — kalau boleh keluar
+        const proxy = 'https://corsproxy.io/?' + encodeURIComponent('https://api.tikwm.com/api/?url=' + link);
+        const res = await fetch(proxy, { signal: AbortSignal.timeout(15000) });
+        const data = await res.json();
 
-    for(const apiUrl of apis){
-        try{
-            const res = await fetch(apiUrl, { signal: AbortSignal.timeout(12000) });
-            if(res.ok){
-                const d = await res.json();
-                if(d.code === 0 && d.data){
-                    data = d.data;
-                    success = true;
-                    break;
-                }
-            }
-        }catch(e){ continue; }
-    }
+        if(data.code === 0 && data.data){
+            document.getElementById('cap').innerText = data.data.title || title;
+            document.getElementById('v').innerText = format(data.data.play_count);
+            document.getElementById('l').innerText = format(data.data.digg_count);
+            document.getElementById('c').innerText = format(data.data.comment_count);
+            document.getElementById('s').innerText = format(data.data.share_count);
+        } else {
+            // Kalau tak boleh — tunjuk borang mudah masuk
+            document.getElementById('cap').innerText = title;
+            document.getElementById('v').innerHTML = '<input type="number" placeholder="Tontonan" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+            document.getElementById('l').innerHTML = '<input type="number" placeholder="Suka" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+            document.getElementById('c').innerHTML = '<input type="number" placeholder="Komen" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+            document.getElementById('s').innerHTML = '<input type="number" placeholder="Kongsi" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+            
+            msg.innerHTML = '<p class="info">💡 Masukkan nombor dari TikTok secara manual — cepat je!</p>';
+        }
 
-    if(success && data){
-        document.getElementById('cap').innerText = data.title || 'Tiada keterangan';
-        document.getElementById('v').innerText = format(data.play_count);
-        document.getElementById('l').innerText = format(data.digg_count);
-        document.getElementById('c').innerText = format(data.comment_count);
-        document.getElementById('s').innerText = format(data.share_count);
-        document.getElementById('acc').innerText = '@' + (data.author?.unique_id || extractInfo(link).username);
+        document.getElementById('acc').innerText = '@' + username;
         document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
         result.style.display = 'block';
-    }else{
-        // Cara alternatif — tunjuk borang masuk manual
-        const info = extractInfo(link);
-        document.getElementById('cap').innerText = 'Pautan: ' + link.substring(0, 40) + '...';
-        document.getElementById('v').innerHTML = '<input type="number" placeholder="Masukkan tontonan" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('l').innerHTML = '<input type="number" placeholder="Masukkan suka" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('c').innerHTML = '<input type="number" placeholder="Masukkan komen" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('s').innerHTML = '<input type="number" placeholder="Masukkan kongsi" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('acc').innerText = '@' + info.username;
+
+    }catch(err){
+        // Kalau semua tak boleh — tunjuk borang mudah
+        document.getElementById('cap').innerText = title;
+        document.getElementById('v').innerHTML = '<input type="number" placeholder="Tontonan" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+        document.getElementById('l').innerHTML = '<input type="number" placeholder="Suka" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+        document.getElementById('c').innerHTML = '<input type="number" placeholder="Komen" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+        document.getElementById('s').innerHTML = '<input type="number" placeholder="Kongsi" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
+        
+        document.getElementById('acc').innerText = '@' + username;
         document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
         result.style.display = 'block';
         
-        msg.innerHTML = '<p style="color:#fbbf24;">⚠️ Sambungan pelayan luar disekat oleh pelayar anda. Sila masukkan nombor secara manual di atas.</p>';
+        msg.innerHTML = '<p class="info">💡 Masukkan nombor dari TikTok secara manual — cepat je!</p>';
     }
 
     loading.style.display = 'none';
