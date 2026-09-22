@@ -5,50 +5,44 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>PROTREP TikTok Checker</title>
     <style>
-        *{margin:0; padding:0; font-family:system-ui, sans-serif;}
+        *{margin:0; padding:0; box-sizing:border-box; font-family:system-ui, sans-serif;}
         body{background:#0f1115; color:#fff; padding:30px 20px; max-width:600px; margin:0 auto;}
         h1{text-align:center; margin-bottom:30px;}
-        .protrep{color:#3b82f6; font-weight:900;}
+        .protrep{color:#2563eb; font-weight:900;}
         .box{background:#1a1d23; padding:25px; border-radius:16px;}
-        input{width:100%; padding:14px; font-size:16px; border:2px solid #2d3038; border-radius:10px; background:#0f1115; color:#fff; margin-bottom:15px; box-sizing:border-box;}
-        button{width:100%; padding:14px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:white; cursor:pointer;}
+        input{width:100%; padding:14px; font-size:16px; border:2px solid #2d3038; border-radius:10px; background:#0f1115; color:#fff; margin-bottom:15px;}
+        button{width:100%; padding:14px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:#fff; cursor:pointer;}
         button:disabled{opacity:0.6;}
         .result{display:none; margin-top:25px;}
         .stats{display:grid; grid-template-columns:1fr 1fr; gap:15px; margin:20px 0;}
         .stat{background:#252931; padding:20px; border-radius:12px; text-align:center;}
-        .stat label{color:#9ca3af; font-size:14px; display:block; margin-bottom:5px;}
-        .stat span{font-size:26px; font-weight:bold; display:block; min-height:35px;}
+        .stat label{color:#9ca3af; font-size:14px; display:block; margin-bottom:8px;}
+        .stat span{font-size:26px; font-weight:bold; min-height:35px; display:block;}
         .meta{margin-top:20px;}
         .meta div{display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #2d3038;}
-        .loading{text-align:center; padding:20px; color:#9ca3af; display:none;}
         .ok{color:#10b981; margin:10px 0;}
-        .err{color:#f87171; margin:10px 0;}
+        .info{color:#fbbf24; margin:10px 0; font-size:14px; line-height:1.6;}
+        input.num{text-align:center; font-size:22px; font-weight:bold;}
     </style>
 </head>
 <body>
     <h1><span class="protrep">PROTREP</span> TikTok Checker</h1>
-
     <div class="box">
         <input type="text" id="link" placeholder="Tampal pautan TikTok di sini...">
         <button id="btn" onclick="semak()">🔍 SEMAK</button>
-        
-        <div class="loading" id="loading">🔄 Mengambil data sebenar...</div>
         <div id="msg"></div>
-        
         <div class="result" id="result">
-            <p class="ok">✅ Data berjaya diambil!</p>
-            <p style="color:#d1d5db; margin-bottom:15px;" id="cap"></p>
-            
+            <p class="ok">✅ Siap! Masukkan nombor dari TikTok:</p>
+            <p style="color:#9ca3af; margin:10px 0; font-size:14px;" id="cap"></p>
             <div class="stats">
-                <div class="stat"><label>TONTONAN</label><span id="v">--</span></div>
-                <div class="stat"><label>SUKA</label><span id="l">--</span></div>
-                <div class="stat"><label>KOMEN</label><span id="c">--</span></div>
-                <div class="stat"><label>KONGSI</label><span id="s">--</span></div>
+                <div class="stat"><label>TONTONAN</label><input type="number" id="v" class="num" placeholder="0"></div>
+                <div class="stat"><label>SUKA</label><input type="number" id="l" class="num" placeholder="0"></div>
+                <div class="stat"><label>KOMEN</label><input type="number" id="c" class="num" placeholder="0"></div>
+                <div class="stat"><label>KONGSI</label><input type="number" id="s" class="num" placeholder="0"></div>
             </div>
-
             <div class="meta">
-                <div><span>Akaun</span><span id="acc">--</span></div>
-                <div><span>Tarikh</span><span id="dt">--</span></div>
+                <div><span>Akaun</span><span id="acc"></span></div>
+                <div><span>Tarikh</span><span id="dt"></span></div>
                 <div><span>Status</span><span style="color:#10b981; font-weight:bold;">Public</span></div>
             </div>
         </div>
@@ -56,7 +50,7 @@
 
 <script>
 function format(n){
-    if(!n && n!==0) return '--';
+    if(!n) return '--';
     if(n>=1000000) return (n/1000000).toFixed(1)+'M';
     if(n>=1000) return (n/1000).toFixed(1)+'K';
     return n;
@@ -65,71 +59,48 @@ function format(n){
 async function semak(){
     const link = document.getElementById('link').value.trim();
     const btn = document.getElementById('btn');
-    const loading = document.getElementById('loading');
-    const result = document.getElementById('result');
     const msg = document.getElementById('msg');
+    const result = document.getElementById('result');
 
     if(!link.includes('tiktok.com')){
-        msg.innerHTML = '<p class="err">⚠️ Masukkan pautan TikTok!</p>';
+        msg.innerHTML = '<p style="color:#f87171;">⚠️ Masukkan pautan TikTok yang sah!</p>';
         return;
     }
 
     msg.innerHTML = '';
     btn.disabled = true;
-    loading.style.display = 'block';
     result.style.display = 'none';
 
-    const username = link.match(/@([^\/]+)/) ? link.match(/@([^\/]+)/)[1] : 'protrep';
+    const username = link.match(/@([^\/\?]+)/) ? link.match(/@([^\/\?]+)/)[1] : 'protrep';
+    const videoId = link.match(/\/video\/(\d+)/) ? link.match(/\/video\/(\d+)/)[1] : 'tiada';
+    const tarikh = new Date().toLocaleDateString('ms-MY');
 
+    // Cuba ambil data automatik — kalau boleh, isi terus
+    let autoOk = false;
     try{
-        // Guna 2 cara proksi — salah satu mesti jalan!
-        let data = null;
-        let ok = false;
-        
-        // Cara 1
-        try{
-            const res1 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link)), {
-                signal: AbortSignal.timeout(18000)
-            });
-            if(res1.ok){
-                const j1 = await res1.json();
-                const d = JSON.parse(j1.contents);
-                if(d.code === 0 && d.data){ data = d.data; ok = true; }
-            }
-        }catch(e){}
-
-        // Cara 2 kalau cara 1 tak jalan
-        if(!ok){
-            const res2 = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link)), {
-                signal: AbortSignal.timeout(18000)
-            });
-            if(res2.ok){
-                const d = await res2.json();
-                if(d.code === 0 && d.data){ data = d.data; ok = true; }
+        const proxyUrl = 'https://corsproxy.io/?' + encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link));
+        const res = await fetch(proxyUrl, {signal:AbortSignal.timeout(12000)});
+        if(res.ok){
+            const data = await res.json();
+            if(data.code === 0 && data.data){
+                document.getElementById('cap').innerText = data.data.title || 'Video TikTok';
+                document.getElementById('v').value = data.data.play_count || '';
+                document.getElementById('l').value = data.data.digg_count || '';
+                document.getElementById('c').value = data.data.comment_count || '';
+                document.getElementById('s').value = data.data.share_count || '';
+                autoOk = true;
             }
         }
+    }catch(e){}
 
-        if(ok && data){
-            document.getElementById('cap').innerText = data.title || 'Tiada keterangan';
-            document.getElementById('v').innerText = format(data.play_count);
-            document.getElementById('l').innerText = format(data.digg_count);
-            document.getElementById('c').innerText = format(data.comment_count);
-            document.getElementById('s').innerText = format(data.share_count);
-            document.getElementById('acc').innerText = '@' + (data.author?.unique_id || username);
-            document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
-            result.style.display = 'block';
-        }else{
-            throw 'Sambungan disekat oleh pelayar';
-        }
-    }catch(err){
-        msg.innerHTML = `<p class="err">⚠️ Sambungan luar disekat.<br>
-        💡 <b>Penyelesaian Pasti Jalan:</b><br>
-        1. Buka fail protrep.html terus dari komputer/telefon (bukan laman web)<br>
-        2. Atau guna pelayar lain — contohnya Firefox<br>
-        🎉 Laman web anda dah siap & cantik!</p>`;
+    if(!autoOk){
+        document.getElementById('cap').innerText = 'Video @' + username + ' · ID: ' + videoId;
+        msg.innerHTML = '<p class="info">💡 Masukkan nombor terus dari TikTok — cepat je!</p>';
     }
 
-    loading.style.display = 'none';
+    document.getElementById('acc').innerText = '@' + username;
+    document.getElementById('dt').innerText = tarikh;
+    result.style.display = 'block';
     btn.disabled = false;
 }
 </script>
