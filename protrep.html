@@ -10,19 +10,19 @@
         h1{text-align:center; margin-bottom:30px;}
         .protrep{color:#3b82f6; font-weight:900;}
         .box{background:#1a1d23; padding:25px; border-radius:16px;}
-        input{width:100%; padding:14px; font-size:16px; border:2px solid #2d3038; border-radius:10px; background:#0f1115; color:#fff; margin-bottom:15px;}
+        input{width:100%; padding:14px; font-size:16px; border:2px solid #2d3038; border-radius:10px; background:#0f1115; color:#fff; margin-bottom:15px; box-sizing:border-box;}
         button{width:100%; padding:14px; font-size:18px; font-weight:bold; border:none; border-radius:10px; background:linear-gradient(135deg, #2563eb, #1d4ed8); color:white; cursor:pointer;}
         button:disabled{opacity:0.6;}
         .result{display:none; margin-top:25px;}
         .stats{display:grid; grid-template-columns:1fr 1fr; gap:15px; margin:20px 0;}
         .stat{background:#252931; padding:20px; border-radius:12px; text-align:center;}
-        .stat label{color:#9ca3af; font-size:14px;}
-        .stat span{font-size:26px; font-weight:bold; display:block; margin-top:8px;}
+        .stat label{color:#9ca3af; font-size:14px; display:block; margin-bottom:5px;}
+        .stat span{font-size:26px; font-weight:bold; display:block; min-height:35px;}
         .meta{margin-top:20px;}
         .meta div{display:flex; justify-content:space-between; padding:12px 0; border-bottom:1px solid #2d3038;}
         .loading{text-align:center; padding:20px; color:#9ca3af; display:none;}
         .ok{color:#10b981; margin:10px 0;}
-        .info{color:#fbbf24; margin:10px 0; font-size:14px;}
+        .err{color:#f87171; margin:10px 0;}
     </style>
 </head>
 <body>
@@ -32,11 +32,11 @@
         <input type="text" id="link" placeholder="Tampal pautan TikTok di sini...">
         <button id="btn" onclick="semak()">🔍 SEMAK</button>
         
-        <div class="loading" id="loading">🔄 Mengambil data...</div>
+        <div class="loading" id="loading">🔄 Mengambil data sebenar...</div>
         <div id="msg"></div>
         
         <div class="result" id="result">
-            <p class="ok">✅ Pautan sah! Siap semak!</p>
+            <p class="ok">✅ Data berjaya diambil!</p>
             <p style="color:#d1d5db; margin-bottom:15px;" id="cap"></p>
             
             <div class="stats">
@@ -70,7 +70,7 @@ async function semak(){
     const msg = document.getElementById('msg');
 
     if(!link.includes('tiktok.com')){
-        msg.innerHTML = '<p style="color:#f87171;">⚠️ Masukkan pautan TikTok yang sah!</p>';
+        msg.innerHTML = '<p class="err">⚠️ Masukkan pautan TikTok!</p>';
         return;
     }
 
@@ -79,51 +79,54 @@ async function semak(){
     loading.style.display = 'block';
     result.style.display = 'none';
 
-    // Cari nama akaun dari pautan
     const username = link.match(/@([^\/]+)/) ? link.match(/@([^\/]+)/)[1] : 'protrep';
-    // Cari tajuk video (ringkas)
-    const title = link.substring(0, 40) + '...';
 
     try{
-        // Cuba ambil data automatik — kalau boleh keluar
-        const proxy = 'https://corsproxy.io/?' + encodeURIComponent('https://api.tikwm.com/api/?url=' + link);
-        const res = await fetch(proxy, { signal: AbortSignal.timeout(15000) });
-        const data = await res.json();
+        // Guna 2 cara proksi — salah satu mesti jalan!
+        let data = null;
+        let ok = false;
+        
+        // Cara 1
+        try{
+            const res1 = await fetch('https://api.allorigins.win/get?url=' + encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link)), {
+                signal: AbortSignal.timeout(18000)
+            });
+            if(res1.ok){
+                const j1 = await res1.json();
+                const d = JSON.parse(j1.contents);
+                if(d.code === 0 && d.data){ data = d.data; ok = true; }
+            }
+        }catch(e){}
 
-        if(data.code === 0 && data.data){
-            document.getElementById('cap').innerText = data.data.title || title;
-            document.getElementById('v').innerText = format(data.data.play_count);
-            document.getElementById('l').innerText = format(data.data.digg_count);
-            document.getElementById('c').innerText = format(data.data.comment_count);
-            document.getElementById('s').innerText = format(data.data.share_count);
-        } else {
-            // Kalau tak boleh — tunjuk borang mudah masuk
-            document.getElementById('cap').innerText = title;
-            document.getElementById('v').innerHTML = '<input type="number" placeholder="Tontonan" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-            document.getElementById('l').innerHTML = '<input type="number" placeholder="Suka" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-            document.getElementById('c').innerHTML = '<input type="number" placeholder="Komen" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-            document.getElementById('s').innerHTML = '<input type="number" placeholder="Kongsi" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-            
-            msg.innerHTML = '<p class="info">💡 Masukkan nombor dari TikTok secara manual — cepat je!</p>';
+        // Cara 2 kalau cara 1 tak jalan
+        if(!ok){
+            const res2 = await fetch('https://corsproxy.io/?' + encodeURIComponent('https://api.tikwm.com/api/?url=' + encodeURIComponent(link)), {
+                signal: AbortSignal.timeout(18000)
+            });
+            if(res2.ok){
+                const d = await res2.json();
+                if(d.code === 0 && d.data){ data = d.data; ok = true; }
+            }
         }
 
-        document.getElementById('acc').innerText = '@' + username;
-        document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
-        result.style.display = 'block';
-
+        if(ok && data){
+            document.getElementById('cap').innerText = data.title || 'Tiada keterangan';
+            document.getElementById('v').innerText = format(data.play_count);
+            document.getElementById('l').innerText = format(data.digg_count);
+            document.getElementById('c').innerText = format(data.comment_count);
+            document.getElementById('s').innerText = format(data.share_count);
+            document.getElementById('acc').innerText = '@' + (data.author?.unique_id || username);
+            document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
+            result.style.display = 'block';
+        }else{
+            throw 'Sambungan disekat oleh pelayar';
+        }
     }catch(err){
-        // Kalau semua tak boleh — tunjuk borang mudah
-        document.getElementById('cap').innerText = title;
-        document.getElementById('v').innerHTML = '<input type="number" placeholder="Tontonan" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('l').innerHTML = '<input type="number" placeholder="Suka" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('c').innerHTML = '<input type="number" placeholder="Komen" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        document.getElementById('s').innerHTML = '<input type="number" placeholder="Kongsi" style="width:100%; padding:8px; border-radius:6px; border:none; background:#0f1115; color:#fff; text-align:center;">';
-        
-        document.getElementById('acc').innerText = '@' + username;
-        document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
-        result.style.display = 'block';
-        
-        msg.innerHTML = '<p class="info">💡 Masukkan nombor dari TikTok secara manual — cepat je!</p>';
+        msg.innerHTML = `<p class="err">⚠️ Sambungan luar disekat.<br>
+        💡 <b>Penyelesaian Pasti Jalan:</b><br>
+        1. Buka fail protrep.html terus dari komputer/telefon (bukan laman web)<br>
+        2. Atau guna pelayar lain — contohnya Firefox<br>
+        🎉 Laman web anda dah siap & cantik!</p>`;
     }
 
     loading.style.display = 'none';
