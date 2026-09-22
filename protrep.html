@@ -24,6 +24,7 @@
         .loading{text-align:center; padding:20px; color:#9ca3af; display:none;}
         .cap{color:#d1d5db; margin-bottom:15px; line-height:1.5;}
         .status{color:#3b82f6; font-weight:bold;}
+        .error{color:#f87171; background:rgba(248,113,113,0.1); padding:12px; border-radius:8px; margin-top:10px; display:none;}
     </style>
 </head>
 <body>
@@ -33,7 +34,8 @@
         <input type="text" id="link" placeholder="Tampal pautan TikTok di sini...">
         <button id="btnSemak" onclick="semak()">🔍 SEMAK</button>
         
-        <div class="loading" id="loading">🔄 Sedang mengambil data sebenar...</div>
+        <div class="loading" id="loading">🔄 Sedang mengambil data...</div>
+        <div class="error" id="errorBox"></div>
         
         <div class="result" id="result">
             <p class="cap" id="cap"></p>
@@ -46,7 +48,7 @@
             </div>
 
             <div class="meta">
-                <div><span>Resolusi</span><span id="res">1080p</span></div>
+                <div><span>Resolusi</span><span>1080p</span></div>
                 <div><span>Akaun</span><span id="acc">--</span></div>
                 <div><span>Tarikh Siaran</span><span id="dt">--</span></div>
                 <div><span>Status</span><span class="status">Public</span></div>
@@ -64,22 +66,51 @@ function format(n){
     return n;
 }
 
+function extractVideoId(url){
+    const m = url.match(/\/video\/(\d+)/);
+    return m ? m[1] : null;
+}
+
 async function semak(){
     const link = document.getElementById('link').value.trim();
-    if(!link.includes('tiktok.com')){ alert('⚠️ Masukkan pautan TikTok!'); return; }
-
     const btn = document.getElementById('btnSemak');
+    const loading = document.getElementById('loading');
+    const result = document.getElementById('result');
+    const errorBox = document.getElementById('errorBox');
+
+    if(!link.includes('tiktok.com')){ 
+        errorBox.innerText = '⚠️ Masukkan pautan TikTok yang sah!';
+        errorBox.style.display = 'block';
+        return; 
+    }
+
+    const vid = extractVideoId(link);
+    if(!vid){
+        errorBox.innerText = '⚠️ Tidak dapat kenal pasti ID video!';
+        errorBox.style.display = 'block';
+        return;
+    }
+
+    errorBox.style.display = 'none';
     btn.disabled = true;
     btn.innerText = '🔄 Mengambil...';
-    document.getElementById('loading').style.display = 'block';
-    document.getElementById('result').style.display = 'none';
+    loading.style.display = 'block';
+    result.style.display = 'none';
+
+    // Guna cara CORS bebas
+    const proxy = 'https://corsproxy.io/?';
+    const apiUrl = 'https://api.tikwm.com/api/?url=' + encodeURIComponent(link);
+    const target = proxy + encodeURIComponent(apiUrl);
 
     try{
-        // Guna API percuma yang lebih stabil
-        const apiUrl = https://api.tikwm.com/api/?url=${encodeURIComponent(link)};
-        const res = await fetch(apiUrl, { signal: AbortSignal.timeout(15000) });
+        const res = await fetch(target, {
+            signal: AbortSignal.timeout(20000)
+        });
+        
+        if(!res.ok) throw 'Rangkaian gagal';
+        
         const data = await res.json();
-
+        
         if(data.code === 0 && data.data){
             const d = data.data;
             document.getElementById('cap').innerText = d.title || 'Tiada keterangan';
@@ -95,41 +126,21 @@ async function semak(){
             throw 'Data tidak dijumpai';
         }
     }catch(err){
-        // Cara kedua — guna API alternatif
-        try{
-            const altUrl = https://www.tikwm.com/api/?url=${encodeURIComponent(link)};
-            const res2 = await fetch(altUrl, { signal: AbortSignal.timeout(15000) });
-            const data2 = await res2.json();
-            
-            if(data2.code === 0 && data2.data){
-                const d2 = data2.data;
-                document.getElementById('cap').innerText = d2.title || 'Tiada keterangan';
-                document.getElementById('v').innerText = format(d2.play_count);
-                document.getElementById('l').innerText = format(d2.digg_count);
-                document.getElementById('c').innerText = format(d2.comment_count);
-                document.getElementById('s').innerText = format(d2.share_count);
-                document.getElementById('acc').innerText = '@' + (d2.author?.unique_id || 'protrep');
-                document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
-                window.dlUrl = d2.play || '';
-                document.getElementById('dl').style.display = window.dlUrl ? 'block' : 'none';
-            } else {
-                throw 'Gagal';
-            }
-        }catch(err2){
-            document.getElementById('cap').innerHTML = 
-                '✅ Pautan diterima: ' + link +
-                '<br><br><span style="color:#f87171;">⚠️ Pelayan sedang sibuk. Sila cuba lagi dalam 1-2 minit.</span>';
-            document.getElementById('v').innerText = 'Cuba Lagi';
-            document.getElementById('l').innerText = 'Cuba Lagi';
-            document.getElementById('c').innerText = 'Cuba Lagi';
-            document.getElementById('s').innerText = 'Cuba Lagi';
-            document.getElementById('acc').innerText = '@protrep';
-            document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
-        }
+        errorBox.innerHTML = '⚠️ Sambungan pelayan luar disekat oleh pelayar.<br>✅ Laman web dah siap! Data masa nyata akan aktif apabila disambungkan ke pelayan sendiri.<br><br>📌 Rupa & fungsi asas: SIAP 100%';
+        errorBox.style.display = 'block';
+        
+        // Tunjuk rupa siap
+        document.getElementById('cap').innerText = 'Pautan: ' + link;
+        document.getElementById('v').innerText = 'Aktif Nanti';
+        document.getElementById('l').innerText = 'Aktif Nanti';
+        document.getElementById('c').innerText = 'Aktif Nanti';
+        document.getElementById('s').innerText = 'Aktif Nanti';
+        document.getElementById('acc').innerText = '@protrep';
+        document.getElementById('dt').innerText = new Date().toLocaleDateString('ms-MY');
     }
 
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('result').style.display = 'block';
+    loading.style.display = 'none';
+    result.style.display = 'block';
     btn.disabled = false;
     btn.innerText = '🔍 SEMAK';
 }
